@@ -1,0 +1,69 @@
+{
+    "add_total_row":  0,
+    "add_translate_data":  0,
+    "columns":  [
+
+                ],
+    "creation":  "2026-04-29 13:06:13.584615",
+    "disabled":  0,
+    "docstatus":  0,
+    "doctype":  "Report",
+    "filters":  [
+                    {
+                        "default":  "Solar City",
+                        "fieldname":  "company",
+                        "fieldtype":  "Link",
+                        "label":  "Company",
+                        "mandatory":  0,
+                        "options":  "Company",
+                        "wildcard_filter":  0
+                    },
+                    {
+                        "fieldname":  "supplier",
+                        "fieldtype":  "Link",
+                        "label":  "Supplier",
+                        "mandatory":  1,
+                        "options":  "Supplier",
+                        "wildcard_filter":  0
+                    },
+                    {
+                        "default":  "2026-01-01",
+                        "fieldname":  "from_date",
+                        "fieldtype":  "Date",
+                        "label":  "From Date",
+                        "mandatory":  0,
+                        "wildcard_filter":  0
+                    },
+                    {
+                        "default":  "Today",
+                        "fieldname":  "to_date",
+                        "fieldtype":  "Date",
+                        "label":  "To Date",
+                        "mandatory":  0,
+                        "wildcard_filter":  0
+                    }
+                ],
+    "idx":  0,
+    "is_standard":  "Yes",
+    "letter_head":  null,
+    "modified":  "2026-07-02 09:44:50.910916",
+    "modified_by":  "Administrator",
+    "module":  "Solar",
+    "name":  "Supplier Detailed Statement",
+    "owner":  "Administrator",
+    "prepared_report":  0,
+    "query":  "WITH opening_balance AS (\n\n    SELECT\n        IFNULL(SUM(debit_amount),0) - IFNULL(SUM(credit_amount),0) AS opening_balance\n    FROM (\n\n        SELECT\n            pi.grand_total AS debit_amount,\n            0 AS credit_amount\n        FROM `tabPurchase Invoice` pi\n        WHERE\n            pi.docstatus = 1\n            AND pi.supplier = %(supplier)s\n            AND pi.posting_date \u003c %(from_date)s\n            AND (%(company)s IS NULL OR %(company)s = \u0027\u0027 OR pi.company = %(company)s)\n\n        UNION ALL\n\n        SELECT\n            0 AS debit_amount,\n            pe.paid_amount AS credit_amount\n        FROM `tabPayment Entry` pe\n        WHERE\n            pe.docstatus = 1\n            AND pe.payment_type = \u0027Pay\u0027\n            AND pe.party_type = \u0027Supplier\u0027\n            AND pe.party = %(supplier)s\n            AND pe.posting_date \u003c %(from_date)s\n            AND (%(company)s IS NULL OR %(company)s = \u0027\u0027 OR pe.company = %(company)s)\n\n    ) x\n),\n\nreport_data AS (\n\n    SELECT\n        %(from_date)s AS posting_date,\n        \"Opening\" AS voucher_type,\n        \"\" AS voucher_no,\n        \"الرصيد الافتتاحي\" AS description,\n        NULL AS qty,\n        \"\" AS uom,\n        NULL AS rate,\n        0 AS discount_amount,\n        0 AS display_debit,\n        0 AS display_credit,\n        ob.opening_balance AS calc_opening,\n        0 AS calc_debit,\n        0 AS calc_credit,\n        \"0-opening\" AS group_key,\n        0 AS sort_order,\n        0 AS idx\n\n    FROM opening_balance ob\n\n    UNION ALL\n\n    SELECT\n        pi.posting_date,\n        \"Purchase Invoice\" AS voucher_type,\n        pi.name AS voucher_no,\n        CONCAT(\"مشتريات رقم \", pi.name) AS description,\n        NULL AS qty,\n        \"\" AS uom,\n        NULL AS rate,\n        0 AS discount_amount,\n        0 AS display_debit,\n        0 AS display_credit,\n        0 AS calc_opening,\n        0 AS calc_debit,\n        0 AS calc_credit,\n        CONCAT(\"1-\", pi.name) AS group_key,\n        1 AS sort_order,\n        0 AS idx\n\n    FROM `tabPurchase Invoice` pi\n    WHERE\n        pi.docstatus = 1\n        AND pi.supplier = %(supplier)s\n        AND pi.posting_date BETWEEN %(from_date)s AND %(to_date)s\n        AND (%(company)s IS NULL OR %(company)s = \u0027\u0027 OR pi.company = %(company)s)\n\n    UNION ALL\n\n    SELECT\n        pi.posting_date,\n        \"\" AS voucher_type,\n        \"\" AS voucher_no,\n        pii.item_name AS description,\n        pii.qty,\n        pii.uom,\n        pii.rate,\n        IFNULL(pii.discount_amount,0),\n        pii.amount,\n        0,\n        0,\n        pii.amount,\n        0,\n        CONCAT(\"1-\", pi.name),\n        2,\n        pii.idx\n\n    FROM `tabPurchase Invoice` pi\n    INNER JOIN `tabPurchase Invoice Item` pii\n        ON pii.parent = pi.name\n\n    WHERE\n        pi.docstatus = 1\n        AND pi.supplier = %(supplier)s\n        AND pi.posting_date BETWEEN %(from_date)s AND %(to_date)s\n        AND (%(company)s IS NULL OR %(company)s = \u0027\u0027 OR pi.company = %(company)s)\n\n    UNION ALL\n\n    SELECT\n        pi.posting_date,\n        \"\" AS voucher_type,\n        \"\" AS voucher_no,\n        \"الإجمالي\" AS description,\n        NULL,\n        \"\",\n        NULL,\n        0,\n        pi.grand_total,\n        0,\n        0,\n        0,\n        0,\n        CONCAT(\"1-\", pi.name),\n        3,\n        9999\n\n    FROM `tabPurchase Invoice` pi\n    WHERE\n        pi.docstatus = 1\n        AND pi.supplier = %(supplier)s\n        AND pi.posting_date BETWEEN %(from_date)s AND %(to_date)s\n        AND (%(company)s IS NULL OR %(company)s = \u0027\u0027 OR pi.company = %(company)s)\n\n    UNION ALL\n\n    SELECT\n        pe.posting_date,\n        \"Payment Entry\",\n        pe.name,\n        \"قيد سداد للمورد\",\n        NULL,\n        \"\",\n        NULL,\n        0,\n        0,\n        pe.paid_amount,\n        0,\n        0,\n        pe.paid_amount,\n        CONCAT(\"2-\", pe.name),\n        4,\n        0\n\n    FROM `tabPayment Entry` pe\n    WHERE\n        pe.docstatus = 1\n        AND pe.payment_type = \u0027Pay\u0027\n        AND pe.party_type = \u0027Supplier\u0027\n        AND pe.party = %(supplier)s\n        AND pe.posting_date BETWEEN %(from_date)s AND %(to_date)s\n        AND (%(company)s IS NULL OR %(company)s = \u0027\u0027 OR pe.company = %(company)s)\n\n)\n\nSELECT\n    posting_date AS \"Date:Date:120\",\n    voucher_type AS \"Type:Data:130\",\n    voucher_no AS \"Document:Data:190\",\n    description AS \"Description:Data:430\",\n    qty AS \"Qty:Float:90\",\n    uom AS \"UOM:Data:90\",\n    rate AS \"Rate:Currency:120\",\n    discount_amount AS \"Discount:Currency:120\",\n    display_debit AS \"Debit - الصادر:Currency:150\",\n    display_credit AS \"Credit - الوارد:Currency:150\",\n\n    SUM(calc_opening + calc_debit - calc_credit)\n    OVER (\n        ORDER BY posting_date, group_key, sort_order, idx\n    ) AS \"Balance:Currency:150\"\n\nFROM report_data\n\nORDER BY\n    posting_date,\n    group_key,\n    sort_order,\n    idx",
+    "ref_doctype":  "Purchase Invoice",
+    "report_name":  "Supplier Detailed Statement",
+    "report_script":  "",
+    "report_type":  "Query Report",
+    "roles":  [
+                  {
+                      "role":  "Accounts Manager"
+                  },
+                  {
+                      "role":  "Accounts User"
+                  }
+              ],
+    "timeout":  0
+}
