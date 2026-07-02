@@ -1,0 +1,67 @@
+{
+ "add_total_row": 0,
+ "add_translate_data": 0,
+ "columns": [],
+ "creation": "2026-04-29 13:06:13.584615",
+ "disabled": 0,
+ "docstatus": 0,
+ "doctype": "Report",
+ "filters": [
+  {
+   "default": "Solar City",
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "label": "Company",
+   "mandatory": 0,
+   "options": "Company",
+   "wildcard_filter": 0
+  },
+  {
+   "fieldname": "customer",
+   "fieldtype": "Link",
+   "label": "Customer",
+   "mandatory": 1,
+   "options": "Customer",
+   "wildcard_filter": 0
+  },
+  {
+   "default": "2026-01-01",
+   "fieldname": "from_date",
+   "fieldtype": "Date",
+   "label": "From Date",
+   "mandatory": 0,
+   "wildcard_filter": 0
+  },
+  {
+   "default": "Today",
+   "fieldname": "to_date",
+   "fieldtype": "Date",
+   "label": "To Date",
+   "mandatory": 0,
+   "wildcard_filter": 0
+  }
+ ],
+ "idx": 0,
+ "is_standard": "Yes",
+ "letter_head": null,
+ "modified": "2026-07-02 09:44:50.910916",
+ "modified_by": "Administrator",
+ "module": "Solar",
+ "name": "Customer Detailed Statement",
+ "owner": "Administrator",
+ "prepared_report": 0,
+ "query": "WITH opening_balance AS (\r\n\r\n    SELECT\r\n        IFNULL(SUM(debit_amount),0) - IFNULL(SUM(credit_amount),0) AS opening_balance\r\n    FROM (\r\n\r\n        SELECT\r\n            si.grand_total AS debit_amount,\r\n            0 AS credit_amount\r\n        FROM `tabSales Invoice` si\r\n        WHERE\r\n            si.docstatus = 1\r\n            AND si.customer = %(customer)s\r\n            AND si.posting_date < %(from_date)s\r\n            AND (%(company)s IS NULL OR %(company)s = '' OR si.company = %(company)s)\r\n\r\n        UNION ALL\r\n\r\n        SELECT\r\n            0 AS debit_amount,\r\n            pe.paid_amount AS credit_amount\r\n        FROM `tabPayment Entry` pe\r\n        WHERE\r\n            pe.docstatus = 1\r\n            AND pe.payment_type = 'Receive'\r\n            AND pe.party_type = 'Customer'\r\n            AND pe.party = %(customer)s\r\n            AND pe.posting_date < %(from_date)s\r\n            AND (%(company)s IS NULL OR %(company)s = '' OR pe.company = %(company)s)\r\n\r\n    ) x\r\n),\r\n\r\nreport_data AS (\r\n\r\n    SELECT\r\n        %(from_date)s AS posting_date,\r\n        \"Opening\" AS voucher_type,\r\n        \"\" AS voucher_no,\r\n        \"\u0627\u0644\u0631\u0635\u064a\u062f \u0627\u0644\u0627\u0641\u062a\u062a\u0627\u062d\u064a\" AS description,\r\n        NULL AS qty,\r\n        \"\" AS uom,\r\n        NULL AS rate,\r\n        0 AS discount_amount,\r\n        0 AS display_debit,\r\n        0 AS display_credit,\r\n        ob.opening_balance AS calc_opening,\r\n        0 AS calc_debit,\r\n        0 AS calc_credit,\r\n        \"0-opening\" AS group_key,\r\n        0 AS sort_order,\r\n        0 AS idx\r\n\r\n    FROM opening_balance ob\r\n\r\n    UNION ALL\r\n\r\n    SELECT\r\n        si.posting_date,\r\n        \"Sales Invoice\" AS voucher_type,\r\n        si.name AS voucher_no,\r\n        CONCAT(\"\u0645\u0628\u064a\u0639\u0627\u062a \u0631\u0642\u0645 \", si.name) AS description,\r\n        NULL AS qty,\r\n        \"\" AS uom,\r\n        NULL AS rate,\r\n        0 AS discount_amount,\r\n        0 AS display_debit,\r\n        0 AS display_credit,\r\n        0 AS calc_opening,\r\n        0 AS calc_debit,\r\n        0 AS calc_credit,\r\n        CONCAT(\"1-\", si.name) AS group_key,\r\n        1 AS sort_order,\r\n        0 AS idx\r\n\r\n    FROM `tabSales Invoice` si\r\n    WHERE\r\n        si.docstatus = 1\r\n        AND si.customer = %(customer)s\r\n        AND si.posting_date BETWEEN %(from_date)s AND %(to_date)s\r\n        AND (%(company)s IS NULL OR %(company)s = '' OR si.company = %(company)s)\r\n\r\n    UNION ALL\r\n\r\n    SELECT\r\n        si.posting_date,\r\n        \"\" AS voucher_type,\r\n        \"\" AS voucher_no,\r\n        sii.item_name AS description,\r\n        sii.qty,\r\n        sii.uom,\r\n        sii.rate,\r\n        IFNULL(sii.discount_amount,0),\r\n        sii.amount,\r\n        0,\r\n        0,\r\n        sii.amount,\r\n        0,\r\n        CONCAT(\"1-\", si.name),\r\n        2,\r\n        sii.idx\r\n\r\n    FROM `tabSales Invoice` si\r\n    INNER JOIN `tabSales Invoice Item` sii\r\n        ON sii.parent = si.name\r\n\r\n    WHERE\r\n        si.docstatus = 1\r\n        AND si.customer = %(customer)s\r\n        AND si.posting_date BETWEEN %(from_date)s AND %(to_date)s\r\n        AND (%(company)s IS NULL OR %(company)s = '' OR si.company = %(company)s)\r\n\r\n    UNION ALL\r\n\r\n    SELECT\r\n        si.posting_date,\r\n        \"\" AS voucher_type,\r\n        \"\" AS voucher_no,\r\n        \"\u0627\u0644\u0625\u062c\u0645\u0627\u0644\u064a\" AS description,\r\n        NULL,\r\n        \"\",\r\n        NULL,\r\n        0,\r\n        si.grand_total,\r\n        0,\r\n        0,\r\n        0,\r\n        0,\r\n        CONCAT(\"1-\", si.name),\r\n        3,\r\n        9999\r\n\r\n    FROM `tabSales Invoice` si\r\n    WHERE\r\n        si.docstatus = 1\r\n        AND si.customer = %(customer)s\r\n        AND si.posting_date BETWEEN %(from_date)s AND %(to_date)s\r\n        AND (%(company)s IS NULL OR %(company)s = '' OR si.company = %(company)s)\r\n\r\n    UNION ALL\r\n\r\n    SELECT\r\n        pe.posting_date,\r\n        \"Payment Entry\",\r\n        pe.name,\r\n        \"\u0642\u064a\u062f \u0633\u062f\u0627\u062f \u0645\u0646 \u0627\u0644\u062d\u0633\u0627\u0628\",\r\n        NULL,\r\n        \"\",\r\n        NULL,\r\n        0,\r\n        0,\r\n        pe.paid_amount,\r\n        0,\r\n        0,\r\n        pe.paid_amount,\r\n        CONCAT(\"2-\", pe.name),\r\n        4,\r\n        0\r\n\r\n    FROM `tabPayment Entry` pe\r\n    WHERE\r\n        pe.docstatus = 1\r\n        AND pe.payment_type = 'Receive'\r\n        AND pe.party_type = 'Customer'\r\n        AND pe.party = %(customer)s\r\n        AND pe.posting_date BETWEEN %(from_date)s AND %(to_date)s\r\n        AND (%(company)s IS NULL OR %(company)s = '' OR pe.company = %(company)s)\r\n\r\n)\r\n\r\nSELECT\r\n    posting_date AS \"Date:Date:120\",\r\n    voucher_type AS \"Type:Data:130\",\r\n    voucher_no AS \"Document:Data:190\",\r\n    description AS \"Description:Data:430\",\r\n    qty AS \"Qty:Float:90\",\r\n    uom AS \"UOM:Data:90\",\r\n    rate AS \"Rate:Currency:120\",\r\n    discount_amount AS \"Discount:Currency:120\",\r\n    display_debit AS \"Debit - \u0627\u0644\u0635\u0627\u062f\u0631:Currency:150\",\r\n    display_credit AS \"Credit - \u0627\u0644\u0648\u0627\u0631\u062f:Currency:150\",\r\n\r\n    SUM(calc_opening + calc_debit - calc_credit)\r\n    OVER (\r\n        ORDER BY posting_date, group_key, sort_order, idx\r\n    ) AS \"Balance:Currency:150\"\r\n\r\nFROM report_data\r\n\r\nORDER BY\r\n    posting_date,\r\n    group_key,\r\n    sort_order,\r\n    idx",
+ "ref_doctype": "Sales Invoice",
+ "report_name": "Customer Detailed Statement",
+ "report_script": "",
+ "report_type": "Query Report",
+ "roles": [
+  {
+   "role": "Accounts Manager"
+  },
+  {
+   "role": "Accounts User"
+  }
+ ],
+ "timeout": 0
+}
