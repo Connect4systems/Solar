@@ -174,9 +174,9 @@ app_license = "mit"
 # Overriding Methods
 # ------------------------------
 #
-# override_whitelisted_methods = {
-# 	"frappe.desk.doctype.event.event.get_events": "solar.event.get_events"
-# }
+override_whitelisted_methods = {
+	"erpnext.selling.doctype.quotation.quotation.make_sales_order": "solar.api.make_sales_order_with_solar_items"
+}
 #
 # each overriding function accepts a `data` argument;
 # generated from the base implementation of the doctype dashboard,
